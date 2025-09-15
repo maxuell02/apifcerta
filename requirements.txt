@@ -2,5 +2,3 @@ fastapi
 uvicorn[standard]
 sqlalchemy
 fdb
-python-multipart
-sqlalchemy-firebird

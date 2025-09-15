@@ -7,12 +7,12 @@ from sqlalchemy.orm import sessionmaker
 import os
 
 # ------------------------------
-# Configurações do banco Firebird
+# Configurações do banco Firebird via variáveis de ambiente
 # ------------------------------
-HOST = "25.90.252.41"
-USERNAME = "SYSDBA"
-PASSWORD = "masterkey"
-DATABASE_PATH = "D:\\sistemas\\fcerta\\DB\\ALTERDB.ib"
+HOST = os.getenv("FIREBIRD_HOST", "localhost")
+USERNAME = os.getenv("FIREBIRD_USER", "SYSDBA")
+PASSWORD = os.getenv("FIREBIRD_PASSWORD", "masterkey")
+DATABASE_PATH = os.getenv("FIREBIRD_DB", "/app/ALTERDB.fdb")  # Ajuste para seu caminho
 
 DATABASE_URL = f"firebird+fdb://{USERNAME}:{PASSWORD}@{HOST}/{DATABASE_PATH}"
 
@@ -26,7 +26,7 @@ app = FastAPI(title="API Firebird - FCerta")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["*"],  # ideal restringir no futuro
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -38,11 +38,11 @@ app.add_middleware(
 class FilterItem(BaseModel):
     column: str
     op: str  # '=', '!=', '>', '<', '>=', '<=', 'LIKE', 'IN'
-    value: Union[Any, List[Any]]  # valor ou lista de valores para IN
+    value: Union[Any, List[Any]]
 
 class FilterGroup(BaseModel):
     logic: str = "AND"  # "AND" ou "OR"
-    filters: List[Union[FilterItem, "FilterGroup"]]  # subgrupos ou itens
+    filters: List[Union["FilterItem", "FilterGroup"]]
 
 FilterGroup.update_forward_refs()
 
@@ -56,7 +56,7 @@ class TableQuery(BaseModel):
 # ------------------------------
 @app.get("/")
 def root():
-    return {"status": "API rodando com sucesso!"}
+    return {"status": "API rodando com sucesso no Render!"}
 
 @app.get("/tables")
 def list_tables():
@@ -67,7 +67,9 @@ def list_tables():
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+# ------------------------------
 # Função recursiva para construir WHERE
+# ------------------------------
 def build_where(group: FilterGroup, params: dict, param_counter: list):
     clauses = []
     for f in group.filters:
@@ -97,6 +99,9 @@ def build_where(group: FilterGroup, params: dict, param_counter: list):
 
     return f" {group.logic.upper()} ".join(clauses)
 
+# ------------------------------
+# Endpoint genérico para consultar tabelas
+# ------------------------------
 @app.post("/table/{table_name}")
 def fetch_table_data(table_name: str, query: TableQuery):
     try:
@@ -109,7 +114,7 @@ def fetch_table_data(table_name: str, query: TableQuery):
             query_sql = f"SELECT * FROM {table_name} {where_sql} ROWS {query.offset + 1} TO {query.offset + query.limit}"
 
             result = conn.execute(text(query_sql), params)
-            dados = [dict(row) for row in result.fetchall()]
+            dados = [dict(row._mapping) for row in result.fetchall()]  # compatível SQLAlchemy 2.0+
 
         return {"table": table_name, "data": dados, "count": len(dados)}
 
