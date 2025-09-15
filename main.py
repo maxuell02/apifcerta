@@ -1,11 +1,14 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
+from typing import Any, Union, List
 from sqlalchemy import create_engine, text, inspect
 from sqlalchemy.orm import sessionmaker
 import os
 
+# ------------------------------
 # Configurações do banco Firebird
+# ------------------------------
 HOST = "25.90.252.41"
 USERNAME = "SYSDBA"
 PASSWORD = "masterkey"
@@ -16,6 +19,9 @@ DATABASE_URL = f"firebird+fdb://{USERNAME}:{PASSWORD}@{HOST}/{DATABASE_PATH}"
 engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
+# ------------------------------
+# Inicializa FastAPI
+# ------------------------------
 app = FastAPI(title="API Firebird - FCerta")
 
 app.add_middleware(
@@ -26,15 +32,17 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ----- Modelos para filtros lógicos -----
+# ------------------------------
+# Modelos Pydantic
+# ------------------------------
 class FilterItem(BaseModel):
     column: str
     op: str  # '=', '!=', '>', '<', '>=', '<=', 'LIKE', 'IN'
-    value: any  # valor ou lista de valores (para IN)
+    value: Union[Any, List[Any]]  # valor ou lista de valores para IN
 
 class FilterGroup(BaseModel):
     logic: str = "AND"  # "AND" ou "OR"
-    filters: list[FilterItem] | list["FilterGroup"]  # pode ter subgrupos
+    filters: List[Union[FilterItem, "FilterGroup"]]  # subgrupos ou itens
 
 FilterGroup.update_forward_refs()
 
@@ -43,7 +51,9 @@ class TableQuery(BaseModel):
     limit: int = 100
     offset: int = 0
 
-# ----- Rotas -----
+# ------------------------------
+# Rotas da API
+# ------------------------------
 @app.get("/")
 def root():
     return {"status": "API rodando com sucesso!"}
@@ -57,7 +67,7 @@ def list_tables():
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-# Função para construir WHERE recursivamente
+# Função recursiva para construir WHERE
 def build_where(group: FilterGroup, params: dict, param_counter: list):
     clauses = []
     for f in group.filters:
