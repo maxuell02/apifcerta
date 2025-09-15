@@ -1,6 +1,5 @@
 fastapi==0.115.0
 uvicorn[standard]==0.30.6
 sqlalchemy==2.0.36
-sqlalchemy-firebird==0.8.1
-fdb==2.0.2
-pydantic==2.9.2
+sqlalchemy-firebird==2.1
+fdb==1.7.2

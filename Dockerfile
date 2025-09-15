@@ -1,32 +1,36 @@
-# Base: Python 3.11 slim
+# ------------------------------
+# Dockerfile para FastAPI + Firebird
+# ------------------------------
+
+# Imagem base
 FROM python:3.11-slim
 
-# Define diretório de trabalho
-WORKDIR /app
+# Variáveis de ambiente para evitar perguntas do apt
+ENV DEBIAN_FRONTEND=noninteractive
 
-# Evita buffers de stdout
-ENV PYTHONUNBUFFERED=1
-
-# Instala dependências do sistema
-RUN apt-get update && apt-get install -y \
-    gcc \
-    g++ \
-    make \
-    firebird-dev \
-    curl \
+# Atualiza pacotes e instala dependências do sistema
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        build-essential \
+        curl \
+        g++ \
+        gcc \
+        libcurl4-openssl-dev \
+        unixodbc-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Copia requirements
-COPY requirements.txt .
+# Define diretório da aplicação
+WORKDIR /app
 
-# Instala dependências Python
+# Copia requirements e instala dependências Python
+COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copia código da aplicação
+# Copia o código da aplicação
 COPY . .
 
-# Porta exposta
+# Expõe a porta padrão do FastAPI
 EXPOSE 8000
 
-# Comando para rodar a API no Uvicorn
+# Comando para rodar a API com Uvicorn
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
