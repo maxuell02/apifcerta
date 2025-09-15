@@ -2,14 +2,16 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
+import os
 
 # Configurações do banco Firebird
 HOST = "25.90.252.41"
 USERNAME = "SYSDBA"
 PASSWORD = "masterkey"
-DATABASE_PATH = "C:/caminho/para/seu/banco.FDB"  # Defina o caminho correto do seu banco de dados
+DATABASE_PATH = "C:/caminho/para/seu/banco.FDB"  # Ajuste para o caminho correto
 
 # String de conexão SQLAlchemy com Firebird
+# OBS: Para usar no Render, é recomendável trocar para sqlalchemy-firebird
 DATABASE_URL = f"firebird+fdb://{USERNAME}:{PASSWORD}@{HOST}/{DATABASE_PATH}"
 
 # Criando conexão
@@ -44,34 +46,41 @@ def root():
     return {"status": "API rodando com sucesso!"}
 
 
-# Exemplo: Listar registros de uma tabela
-@app.get("/clientes")
-def get_clientes():
+# Função genérica para buscar NRRQU em qualquer tabela
+def fetch_nrrqu(table_name: str):
     try:
         with engine.connect() as conn:
-            result = conn.execute(text("SELECT ID, NOME, EMAIL FROM CLIENTES"))
-            clientes = [dict(row._mapping) for row in result.fetchall()]
-        return {"clientes": clientes}
+            result = conn.execute(text(f"SELECT NRRQU FROM {table_name}"))
+            dados = [row[0] for row in result.fetchall()]
+        return dados
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 
-# Exemplo: Inserir cliente
-@app.post("/clientes")
-def add_cliente(nome: str, email: str):
-    try:
-        with engine.begin() as conn:
-            conn.execute(
-                text("INSERT INTO CLIENTES (NOME, EMAIL) VALUES (:nome, :email)"),
-                {"nome": nome, "email": email},
-            )
-        return {"message": "Cliente adicionado com sucesso"}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+# Endpoints das tabelas solicitadas
+@app.get("/fc12000")
+def get_fc12000():
+    return {"FC12000": fetch_nrrqu("FC12000")}
 
-import os
+@app.get("/fc12001")
+def get_fc12001():
+    return {"FC12001": fetch_nrrqu("FC12001")}
 
+@app.get("/fc12110")
+def get_fc12110():
+    return {"FC12110": fetch_nrrqu("FC12110")}
+
+@app.get("/fc12111")
+def get_fc12111():
+    return {"FC12111": fetch_nrrqu("FC12111")}
+
+@app.get("/fc12300")
+def get_fc12300():
+    return {"FC12300": fetch_nrrqu("FC12300")}
+
+
+# Rodar no Render (porta dinâmica)
 if __name__ == "__main__":
     import uvicorn
-    port = int(os.environ.get("PORT", 8000))  # Render vai injetar a porta
+    port = int(os.environ.get("PORT", 8000))
     uvicorn.run("main:app", host="0.0.0.0", port=port, reload=False)
