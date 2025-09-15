@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
@@ -47,10 +47,16 @@ def root():
 
 
 # Função genérica para buscar NRRQU em qualquer tabela
-def fetch_nrrqu(table_name: str):
+def fetch_nrrqu(table_name: str, nrrqu: int | None = None):
     try:
         with engine.connect() as conn:
-            result = conn.execute(text(f"SELECT NRRQU FROM {table_name}"))
+            if nrrqu is not None:
+                query = text(f"SELECT NRRQU FROM {table_name} WHERE NRRQU = :nrrqu")
+                result = conn.execute(query, {"nrrqu": nrrqu})
+            else:
+                query = text(f"SELECT NRRQU FROM {table_name}")
+                result = conn.execute(query)
+
             dados = [row[0] for row in result.fetchall()]
         return dados
     except Exception as e:
@@ -59,24 +65,24 @@ def fetch_nrrqu(table_name: str):
 
 # Endpoints das tabelas solicitadas
 @app.get("/fc12000")
-def get_fc12000():
-    return {"FC12000": fetch_nrrqu("FC12000")}
+def get_fc12000(nrrqu: int | None = Query(None)):
+    return {"FC12000": fetch_nrrqu("FC12000", nrrqu)}
 
 @app.get("/fc12001")
-def get_fc12001():
-    return {"FC12001": fetch_nrrqu("FC12001")}
+def get_fc12001(nrrqu: int | None = Query(None)):
+    return {"FC12001": fetch_nrrqu("FC12001", nrrqu)}
 
 @app.get("/fc12110")
-def get_fc12110():
-    return {"FC12110": fetch_nrrqu("FC12110")}
+def get_fc12110(nrrqu: int | None = Query(None)):
+    return {"FC12110": fetch_nrrqu("FC12110", nrrqu)}
 
 @app.get("/fc12111")
-def get_fc12111():
-    return {"FC12111": fetch_nrrqu("FC12111")}
+def get_fc12111(nrrqu: int | None = Query(None)):
+    return {"FC12111": fetch_nrrqu("FC12111", nrrqu)}
 
 @app.get("/fc12300")
-def get_fc12300():
-    return {"FC12300": fetch_nrrqu("FC12300")}
+def get_fc12300(nrrqu: int | None = Query(None)):
+    return {"FC12300": fetch_nrrqu("FC12300", nrrqu)}
 
 
 # Rodar no Render (porta dinâmica)
