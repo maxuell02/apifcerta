@@ -9,15 +9,15 @@ import os
 # ------------------------------
 # Configurações do banco Firebird via variáveis de ambiente
 # ------------------------------
-HOST = os.getenv("FIREBIRD_HOST", "localhost")
+HOST = os.getenv("FIREBIRD_HOST", "25.90.252.41")
 USERNAME = os.getenv("FIREBIRD_USER", "SYSDBA")
 PASSWORD = os.getenv("FIREBIRD_PASSWORD", "masterkey")
-DATABASE_PATH = os.getenv("FIREBIRD_DB", "/app/ALTERDB.fdb")  # ajuste o caminho real
+DATABASE_PATH = os.getenv("FIREBIRD_DB", "/app/ALTERDB.ib")  # caminho Linux no Render
 
-# ⚠️ Use firebird+fdb:// (precisa de sqlalchemy-firebird + fdb instalados)
+# URL de conexão usando sqlalchemy-firebird
 DATABASE_URL = f"firebird+fdb://{USERNAME}:{PASSWORD}@{HOST}/{DATABASE_PATH}"
 
-engine = create_engine(DATABASE_URL, pool_pre_ping=True)
+engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 # ------------------------------
@@ -27,7 +27,7 @@ app = FastAPI(title="API Firebird - FCerta")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # 🔒 ideal restringir no futuro
+    allow_origins=["*"],  # ideal restringir no futuro
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -53,7 +53,7 @@ class TableQuery(BaseModel):
     offset: int = 0
 
 # ------------------------------
-# Rotas básicas
+# Rotas da API
 # ------------------------------
 @app.get("/")
 def root():
@@ -66,10 +66,10 @@ def list_tables():
         tables = inspector.get_table_names()
         return {"tables": tables}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Erro ao listar tabelas: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 # ------------------------------
-# Função recursiva para montar WHERE dinâmico
+# Função recursiva para construir WHERE
 # ------------------------------
 def build_where(group: FilterGroup, params: dict, param_counter: list):
     clauses = []
@@ -84,7 +84,7 @@ def build_where(group: FilterGroup, params: dict, param_counter: list):
 
             if op == "IN":
                 if not isinstance(f.value, list):
-                    raise HTTPException(status_code=400, detail="O operador IN requer uma lista")
+                    raise HTTPException(status_code=400, detail="IN deve receber uma lista")
                 placeholders = ", ".join([f":{param_name}_{i}" for i in range(len(f.value))])
                 clauses.append(f"{f.column} IN ({placeholders})")
                 for i, v in enumerate(f.value):
@@ -111,16 +111,13 @@ def fetch_table_data(table_name: str, query: TableQuery):
             where_sql = ""
             if query.filter_group:
                 where_sql = "WHERE " + build_where(query.filter_group, params, [0])
-
-            # Firebird usa ROWS <start> TO <end> para paginação
-            start_row = query.offset + 1
-            end_row = query.offset + query.limit
-            query_sql = f"SELECT * FROM {table_name} {where_sql} ROWS {start_row} TO {end_row}"
+            
+            query_sql = f"SELECT * FROM {table_name} {where_sql} ROWS {query.offset + 1} TO {query.offset + query.limit}"
 
             result = conn.execute(text(query_sql), params)
-            dados = [dict(row._mapping) for row in result.fetchall()]  # compatível SQLAlchemy 2.x
+            dados = [dict(row._mapping) for row in result.fetchall()]  # compatível SQLAlchemy 2.0+
 
         return {"table": table_name, "data": dados, "count": len(dados)}
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Erro na consulta: {e}")
+        raise HTTPException(status_code=500, detail=f"Erro na consulta: {str(e)}")
