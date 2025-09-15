@@ -1,24 +1,22 @@
-# Base mínima do Python
 FROM python:3.11-slim
 
-# Instala cliente Firebird (necessário para fdb)
-RUN apt-get update && apt-get install -y firebird3.0-client && rm -rf /var/lib/apt/lists/*
+# Instala Firebird client (necessário para o fdb funcionar)
+RUN apt-get update && apt-get install -y libfbclient2 && rm -rf /var/lib/apt/lists/*
 
-# Define variável para localizar o fbclient
-ENV LD_LIBRARY_PATH=/usr/lib/firebird:$LD_LIBRARY_PATH
+# Configura caminho da biblioteca
+ENV LD_LIBRARY_PATH=/usr/lib/x86_64-linux-gnu:$LD_LIBRARY_PATH
 
-# Define diretório de trabalho
 WORKDIR /app
 
 # Copia dependências e instala
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copia código da API
+# Copia código
 COPY . .
 
-# Expõe porta
+# Expõe porta da API
 EXPOSE 8000
 
-# Comando inicial
+# Start do servidor
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
