@@ -4,10 +4,10 @@ from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
 
 # Configurações do banco Firebird
-DATABASE_PATH = "D:\\sistemas\\fcerta\\DB\\ALTERDB.ib"
 HOST = "25.90.252.41"
 USERNAME = "SYSDBA"
 PASSWORD = "masterkey"
+DATABASE_PATH = "C:/caminho/para/seu/banco.FDB"  # Defina o caminho correto do seu banco de dados
 
 # String de conexão SQLAlchemy com Firebird
 DATABASE_URL = f"firebird+fdb://{USERNAME}:{PASSWORD}@{HOST}/{DATABASE_PATH}"
