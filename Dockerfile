@@ -1,22 +1,32 @@
+# Base: Python 3.11 slim
 FROM python:3.11-slim
 
-# Instala Firebird client (necessário para o fdb funcionar)
-RUN apt-get update && apt-get install -y libfbclient2 && rm -rf /var/lib/apt/lists/*
-
-# Configura caminho da biblioteca
-ENV LD_LIBRARY_PATH=/usr/lib/x86_64-linux-gnu:$LD_LIBRARY_PATH
-
+# Define diretório de trabalho
 WORKDIR /app
 
-# Copia dependências e instala
+# Evita buffers de stdout
+ENV PYTHONUNBUFFERED=1
+
+# Instala dependências do sistema
+RUN apt-get update && apt-get install -y \
+    gcc \
+    g++ \
+    make \
+    firebird-dev \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copia requirements
 COPY requirements.txt .
+
+# Instala dependências Python
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copia código
+# Copia código da aplicação
 COPY . .
 
-# Expõe porta da API
+# Porta exposta
 EXPOSE 8000
 
-# Start do servidor
+# Comando para rodar a API no Uvicorn
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
